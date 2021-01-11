@@ -22,6 +22,7 @@ type payloadServiceInterface interface {
 }
 
 type payloadService struct {
+	mu sync.Mutex
 }
 
 func (s *payloadService) MakeRequest(ctx context.Context, item items.RequestItem, errChan chan error) *items.ResponseItem {
@@ -60,18 +61,15 @@ func (s *payloadService) DoRequest(ctx context.Context, request items.Request) (
 	errChan := make(chan error, 1)
 
 	wg := &sync.WaitGroup{}
-	mu := &sync.Mutex{}
+	wg.Add(len(request.Items))
 	var restErr rest_errors.RestErr
-	for i, req := range request.Items {
-		go func(i int) {
+	for _, req := range request.Items {
+		go func() {
 			defer wg.Done()
-			wg.Add(1)
 			result := s.MakeRequest(ctx, req, errChan)
-
-			mu.Lock()
+			s.mu.Lock()
 			reqItems = append(reqItems, result)
-			mu.Unlock()
-
+			s.mu.Unlock()
 			select {
 			case err := <-errChan:
 				if err != nil {
@@ -84,7 +82,7 @@ func (s *payloadService) DoRequest(ctx context.Context, request items.Request) (
 				return
 			default:
 			}
-		}(i)
+		}()
 	}
 	wg.Wait()
 
