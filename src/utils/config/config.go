@@ -8,7 +8,6 @@ import (
 
 type Config struct {
 	RequestPayload int `json:"request_payload"`
-	MaxRequestQty  int `json:"max_request_qty"`
 	RequestTimeout int `json:"request_timeout"`
 }
 

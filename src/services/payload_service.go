@@ -15,25 +15,32 @@ import (
 
 var (
 	PayloadService payloadServiceInterface = &payloadService{}
+	WorkerPool     *Worker
 )
 
 type payloadServiceInterface interface {
-	DoRequest(ctx context.Context, items items.Request) (*items.Response, rest_errors.RestErr)
+	DoRequest(ctx context.Context, items items.Request) <-chan Result
 }
 
 type payloadService struct {
 	mu sync.Mutex
 }
 
-func (s *payloadService) MakeRequest(ctx context.Context, item items.RequestItem, errChan chan error) *items.ResponseItem {
-	//timeOut := time.Duration(config.Cfg.RequestTimeout)
+// Result is http result
+type Result struct {
+	Error    rest_errors.RestErr
+	Response *items.Response
+}
+
+func (s *payloadService) apiRequest(ctx context.Context, item items.RequestItem, errChan chan error) *items.ResponseItem {
 	request, err := http.NewRequest("GET", item.Url, nil)
 	if err != nil {
 		errChan <- err
 	}
 	request.Header.Set("Content-Type", "application/json")
 
-	client := http.Client{Timeout: 1 * time.Second}
+	timeOut := time.Duration(config.Cfg.RequestTimeout) * time.Millisecond
+	client := http.Client{Timeout: timeOut}
 	resp, err := client.Do(request)
 	if err != nil {
 		errChan <- err
@@ -50,10 +57,11 @@ func (s *payloadService) MakeRequest(ctx context.Context, item items.RequestItem
 	return response
 }
 
-func (s *payloadService) DoRequest(ctx context.Context, request items.Request) (*items.Response, rest_errors.RestErr) {
+func (s *payloadService) DoRequest(ctx context.Context, request items.Request) <-chan Result {
+	result := make(chan Result, 1)
 	if len(request.Items) > config.Cfg.RequestPayload {
 		respErr := rest_errors.BadRequestError(fmt.Sprintf("max request qty is %d", config.Cfg.RequestPayload))
-		return nil, respErr
+		result <- Result{Response: nil, Error: respErr}
 	}
 	var reqItems []*items.ResponseItem
 	ctx, cancel := context.WithCancel(ctx)
@@ -66,7 +74,7 @@ func (s *payloadService) DoRequest(ctx context.Context, request items.Request) (
 	for _, req := range request.Items {
 		go func() {
 			defer wg.Done()
-			result := s.MakeRequest(ctx, req, errChan)
+			result := s.apiRequest(ctx, req, errChan)
 			s.mu.Lock()
 			reqItems = append(reqItems, result)
 			s.mu.Unlock()
@@ -87,6 +95,6 @@ func (s *payloadService) DoRequest(ctx context.Context, request items.Request) (
 	wg.Wait()
 
 	response := &items.Response{Items: reqItems}
-
-	return response, restErr
+	result <- Result{Response: response, Error: restErr}
+	return result
 }

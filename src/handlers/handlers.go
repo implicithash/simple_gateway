@@ -3,9 +3,12 @@ package handlers
 import (
 	"fmt"
 	"github.com/implicithash/simple_gateway/src/controllers"
+	"github.com/implicithash/simple_gateway/src/services"
 	"io"
 	"net/http"
+	"os"
 	"regexp"
+	"strconv"
 )
 
 type Context struct {
@@ -25,6 +28,14 @@ type App struct {
 	Routes       []Route
 	DefaultRoute Handler
 }
+
+const (
+	maxTaskQueueSize = "max_queue_size"
+)
+
+var (
+	maxQueueSize = os.Getenv(maxTaskQueueSize)
+)
 
 func NewApp() *App {
 	app := &App{
@@ -50,6 +61,12 @@ func MapUrls() http.Handler {
 		}
 	})
 	return app
+}
+
+func InitPool() {
+	maxSize, _ := strconv.Atoi(maxQueueSize)
+	services.WorkerPool = services.NewWorker(maxSize)
+	services.WorkerPool.Run()
 }
 
 func (app *App) Handle(pattern string, handler Handler) {

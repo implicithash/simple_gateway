@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/implicithash/simple_gateway/src/handlers"
+	"github.com/implicithash/simple_gateway/src/services"
 	"github.com/implicithash/simple_gateway/src/utils/config"
 	"log"
 	"net/http"
@@ -22,6 +23,7 @@ func StartApplication() {
 	// Create a deadline to wait for.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
+	services.WorkerPool.Stop()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Println(err)
 	}
@@ -32,6 +34,7 @@ func startServer(serverUrl string) *http.Server {
 	if err := config.Setup(); err != nil {
 		return nil
 	}
+	handlers.InitPool()
 	router := handlers.MapUrls()
 	srv := &http.Server{
 		Addr:         serverUrl,
@@ -51,7 +54,7 @@ func startServer(serverUrl string) *http.Server {
 
 func getKillSignalChan() chan os.Signal {
 	osKillSignalChan := make(chan os.Signal, 1)
-	signal.Notify(osKillSignalChan /*, os.Interrupt, syscall.SIGTERM*/)
+	signal.Notify(osKillSignalChan)
 	return osKillSignalChan
 }
 

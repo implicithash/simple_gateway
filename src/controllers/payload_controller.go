@@ -37,10 +37,15 @@ func (p *payloadController) DoRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, respErr := services.PayloadService.DoRequest(r.Context(), payloadRequest)
-	if respErr != nil {
-		http_utils.RespondError(w, respErr)
+	resultChan := make(chan services.Result)
+	services.WorkerPool.Jobs <- func() {
+		result := services.PayloadService.DoRequest(r.Context(), payloadRequest)
+		resultChan <- <- result
+	}
+	msg := <-resultChan
+	if msg.Error != nil {
+		http_utils.RespondError(w, msg.Error)
 		return
 	}
-	http_utils.RespondJson(w, http.StatusCreated, result)
+	http_utils.RespondJson(w, http.StatusCreated, msg.Response.Items)
 }

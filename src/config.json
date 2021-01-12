@@ -1,5 +1,4 @@
 {
   "request_payload": 20,
-  "max_request_qty": 100,
   "request_timeout": 1000
 }
