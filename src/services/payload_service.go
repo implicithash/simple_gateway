@@ -14,8 +14,10 @@ import (
 )
 
 var (
+	// PayloadService contains a gateway logic
 	PayloadService payloadServiceInterface = &payloadService{}
-	WorkerPool     *Worker
+	// WorkerPool is a job queue
+	WorkerPool *Worker
 )
 
 type payloadServiceInterface interface {
@@ -33,7 +35,7 @@ type Result struct {
 }
 
 func (s *payloadService) apiRequest(ctx context.Context, item items.RequestItem, errChan chan error) *items.ResponseItem {
-	request, err := http.NewRequest("GET", item.Url, nil)
+	request, err := http.NewRequest("GET", item.URL, nil)
 	if err != nil {
 		errChan <- err
 	}

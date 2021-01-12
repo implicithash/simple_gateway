@@ -14,6 +14,7 @@ import (
 	"time"
 )
 
+// StartApplication starts an application
 func StartApplication() {
 	killSignalChan := getKillSignalChan()
 	srv := startServer(":8000")
@@ -30,14 +31,14 @@ func StartApplication() {
 	os.Exit(0)
 }
 
-func startServer(serverUrl string) *http.Server {
+func startServer(serverURL string) *http.Server {
 	if err := config.Setup(); err != nil {
 		return nil
 	}
 	handlers.InitPool()
 	router := handlers.MapUrls()
 	srv := &http.Server{
-		Addr:         serverUrl,
+		Addr:         serverURL,
 		WriteTimeout: 500 * time.Millisecond,
 		ReadTimeout:  5 * time.Second,
 		IdleTimeout:  60 * time.Second,

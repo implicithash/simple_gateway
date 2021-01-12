@@ -11,6 +11,7 @@ import (
 )
 
 var (
+	//PayloadController is a payload controller
 	PayloadController payloadControllerInterface = &payloadController{}
 )
 
@@ -40,12 +41,12 @@ func (p *payloadController) DoRequest(w http.ResponseWriter, r *http.Request) {
 	resultChan := make(chan services.Result)
 	services.WorkerPool.Jobs <- func() {
 		result := services.PayloadService.DoRequest(r.Context(), payloadRequest)
-		resultChan <- <- result
+		resultChan <- <-result
 	}
 	msg := <-resultChan
 	if msg.Error != nil {
 		http_utils.RespondError(w, msg.Error)
 		return
 	}
-	http_utils.RespondJson(w, http.StatusCreated, msg.Response.Items)
+	http_utils.RespondJSON(w, http.StatusCreated, msg.Response.Items)
 }

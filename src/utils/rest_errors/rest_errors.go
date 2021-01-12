@@ -7,6 +7,7 @@ import (
 	"net/http"
 )
 
+// RestErr is an interface for custom error
 type RestErr interface {
 	Message() string
 	Status() int
@@ -38,6 +39,7 @@ func (e restErr) Causes() []interface{} {
 	return e.ErrCauses
 }
 
+// RestError constructs a rest error
 func RestError(message string, status int, err string, causes []interface{}) RestErr {
 	return restErr{
 		ErrMessage: message,
@@ -47,6 +49,7 @@ func RestError(message string, status int, err string, causes []interface{}) Res
 	}
 }
 
+// RestErrorFromBytes constructs a rest error from bytes
 func RestErrorFromBytes(bytes []byte) (RestErr, error) {
 	var apiErr restErr
 	if err := json.Unmarshal(bytes, &apiErr); err != nil {
@@ -55,6 +58,7 @@ func RestErrorFromBytes(bytes []byte) (RestErr, error) {
 	return apiErr, nil
 }
 
+// BadRequestError is a bad request error
 func BadRequestError(message string) RestErr {
 	return restErr{
 		ErrMessage: message,
@@ -63,6 +67,7 @@ func BadRequestError(message string) RestErr {
 	}
 }
 
+// NotFoundError is a not found error
 func NotFoundError(message string) RestErr {
 	return restErr{
 		ErrMessage: message,
@@ -71,6 +76,7 @@ func NotFoundError(message string) RestErr {
 	}
 }
 
+// UnauthorizedError is an unauthorized error
 func UnauthorizedError(message string) RestErr {
 	return restErr{
 		ErrMessage: message,
@@ -79,6 +85,7 @@ func UnauthorizedError(message string) RestErr {
 	}
 }
 
+// InternalServerError is an internal error
 func InternalServerError(message string, err error) RestErr {
 	result := restErr{
 		ErrMessage: message,

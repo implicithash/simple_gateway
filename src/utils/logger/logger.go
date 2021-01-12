@@ -68,6 +68,7 @@ func getOutput() string {
 	return output
 }
 
+// GetLogger gets the log
 func GetLogger() payloadLogger {
 	return log
 }
@@ -84,14 +85,15 @@ func (l logger) Print(v ...interface{}) {
 	Info(fmt.Sprintf("%v", v))
 }
 
+// Info is an info logging
 func Info(msg string, tags ...zap.Field) {
 	log.log.Info(msg, tags...)
 	log.log.Sync()
 }
 
+// Error is a error logging
 func Error(msg string, err error, tags ...zap.Field) {
 	tags = append(tags, zap.NamedError("error", err))
 	log.log.Error(msg, tags...)
 	log.log.Sync()
 }
-
