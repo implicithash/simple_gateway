@@ -18,6 +18,7 @@ var (
 	PayloadService payloadServiceInterface = &payloadService{}
 	// WorkerPool is a job queue
 	WorkerPool *Worker
+	Limiter    *RateLimiter
 )
 
 type payloadServiceInterface interface {
@@ -59,6 +60,7 @@ func (s *payloadService) apiRequest(ctx context.Context, item items.RequestItem,
 	return response
 }
 
+// DoRequest performs a payload request
 func (s *payloadService) DoRequest(ctx context.Context, request items.Request) <-chan Result {
 	result := make(chan Result, 1)
 	if len(request.Items) > config.Cfg.RequestPayload {
@@ -69,6 +71,9 @@ func (s *payloadService) DoRequest(ctx context.Context, request items.Request) <
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	errChan := make(chan error, 1)
+
+	// One incoming request gives a green light to four outgoing ones
+	Limiter.IncomingQueue <- struct{}{}
 
 	wg := &sync.WaitGroup{}
 	wg.Add(len(request.Items))

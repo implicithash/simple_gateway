@@ -24,7 +24,7 @@ func StartApplication() {
 	// Create a deadline to wait for.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
-	services.WorkerPool.Stop()
+	handlers.StopPool()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Println(err)
 	}
@@ -35,7 +35,7 @@ func startServer(serverURL string) *http.Server {
 	if err := config.Setup(); err != nil {
 		return nil
 	}
-	handlers.InitPool()
+	handlers.RunPool()
 	router := handlers.MapUrls()
 	srv := &http.Server{
 		Addr:         serverURL,
@@ -64,6 +64,8 @@ func waitForKillSignal(killSignalChan <-chan os.Signal) {
 	switch killSignal {
 	case os.Interrupt:
 		log.Println("got SIGINT...")
+		log.Println(fmt.Sprintf("Total request qty: %d", services.Limiter.IncomingCounter))
+		log.Println("Stopping server...")
 	case syscall.SIGTERM:
 		log.Println("got SIGTERM...")
 	}

@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-// Context is a context
+// Context is http context
 type Context struct {
 	http.ResponseWriter
 	*http.Request
@@ -35,10 +35,14 @@ type App struct {
 
 const (
 	maxTaskQueueSize = "max_queue_size"
+	incomingReqQty = "incoming_req_qty"
+	outgoingReqQty = "outgoing_req_qty"
 )
 
 var (
 	maxQueueSize = os.Getenv(maxTaskQueueSize)
+	incomingRequestQty = os.Getenv(incomingReqQty)
+	outgoingRequestQty = os.Getenv(outgoingReqQty)
 )
 
 // NewApp constructs a new app
@@ -70,11 +74,22 @@ func MapUrls() http.Handler {
 	return app
 }
 
-// InitPool inits a worker pool
-func InitPool() {
+// RunPool inits a worker pool
+func RunPool() {
 	maxSize, _ := strconv.Atoi(maxQueueSize)
 	services.WorkerPool = services.NewWorker(maxSize)
 	services.WorkerPool.Run()
+
+	incomingReqQty, _ := strconv.Atoi(incomingRequestQty)
+	outgoingReqQty, _ := strconv.Atoi(outgoingRequestQty)
+	services.Limiter = services.NewRateLimiter(incomingReqQty, outgoingReqQty)
+	services.Limiter.Run()
+}
+
+// StopPool stops a worker pool
+func StopPool() {
+	services.Limiter.Stop()
+	services.WorkerPool.Stop()
 }
 
 // Handle parses a parameter pattern and append a route

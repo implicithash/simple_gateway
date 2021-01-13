@@ -42,6 +42,7 @@ func (p *payloadController) DoRequest(w http.ResponseWriter, r *http.Request) {
 	services.WorkerPool.Jobs <- func() {
 		result := services.PayloadService.DoRequest(r.Context(), payloadRequest)
 		resultChan <- <-result
+		<-services.Limiter.OutgoingQueue
 	}
 	msg := <-resultChan
 	if msg.Error != nil {
