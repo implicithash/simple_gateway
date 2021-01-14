@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"github.com/implicithash/simple_gateway/src/controllers"
 	"github.com/implicithash/simple_gateway/src/services"
+	"github.com/implicithash/simple_gateway/src/utils/config"
 	"io"
 	"net/http"
-	"os"
 	"regexp"
-	"strconv"
 )
 
 // Context is http context
@@ -32,18 +31,6 @@ type App struct {
 	Routes       []Route
 	DefaultRoute Handler
 }
-
-const (
-	maxTaskQueueSize = "max_queue_size"
-	incomingReqQty = "incoming_req_qty"
-	outgoingReqQty = "outgoing_req_qty"
-)
-
-var (
-	maxQueueSize = os.Getenv(maxTaskQueueSize)
-	incomingRequestQty = os.Getenv(incomingReqQty)
-	outgoingRequestQty = os.Getenv(outgoingReqQty)
-)
 
 // NewApp constructs a new app
 func NewApp() *App {
@@ -76,13 +63,10 @@ func MapUrls() http.Handler {
 
 // RunPool inits a worker pool
 func RunPool() {
-	maxSize, _ := strconv.Atoi(maxQueueSize)
-	services.WorkerPool = services.NewWorker(maxSize)
+	services.WorkerPool = services.NewWorker(config.Cfg.MaxQueueSize)
 	services.WorkerPool.Run()
 
-	incomingReqQty, _ := strconv.Atoi(incomingRequestQty)
-	outgoingReqQty, _ := strconv.Atoi(outgoingRequestQty)
-	services.Limiter = services.NewRateLimiter(incomingReqQty, outgoingReqQty)
+	services.Limiter = services.NewRateLimiter(config.Cfg.IncomingReqQty, config.Cfg.OutgoingReqQty)
 	services.Limiter.Run()
 }
 

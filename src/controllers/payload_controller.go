@@ -8,6 +8,7 @@ import (
 	"github.com/implicithash/simple_gateway/src/utils/rest_errors"
 	"io/ioutil"
 	"net/http"
+	"sync/atomic"
 )
 
 var (
@@ -42,12 +43,18 @@ func (p *payloadController) DoRequest(w http.ResponseWriter, r *http.Request) {
 	services.WorkerPool.Jobs <- func() {
 		result := services.PayloadService.DoRequest(r.Context(), payloadRequest)
 		resultChan <- <-result
-		<-services.Limiter.OutgoingQueue
 	}
 	msg := <-resultChan
 	if msg.Error != nil {
 		http_utils.RespondError(w, msg.Error)
 		return
 	}
+	services.Limiter.Cond.L.Lock()
+	//services.Limiter.Cond.Wait()
+	<-services.Limiter.OutgoingQueue
+	services.Limiter.Cond.L.Unlock()
+
+	atomic.AddUint64(&services.Limiter.OutgoingCounter, 1)
+
 	http_utils.RespondJSON(w, http.StatusCreated, msg.Response.Items)
 }

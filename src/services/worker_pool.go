@@ -1,7 +1,9 @@
 package services
 
 import (
+	"github.com/implicithash/simple_gateway/src/utils/config"
 	"sync"
+	"sync/atomic"
 )
 
 // Task is a task to be done
@@ -19,8 +21,8 @@ type RateLimiter struct {
 	OutgoingQueue   chan struct{}
 	IncomingCounter uint64
 	OutgoingCounter uint64
-	mu              sync.Mutex
 	Quit            chan struct{}
+	Cond            *sync.Cond
 }
 
 // NewWorker creates a new Pool
@@ -56,6 +58,7 @@ func NewRateLimiter(incomingReqQty int, outgoingReqQty int) *RateLimiter {
 		IncomingQueue: make(chan struct{}, incomingReqQty),
 		OutgoingQueue: make(chan struct{}, outgoingReqQty),
 		Quit:          make(chan struct{}, 1),
+		Cond:          sync.NewCond(&sync.Mutex{}),
 	}
 }
 
@@ -64,17 +67,18 @@ func (r *RateLimiter) Run() {
 	go func() {
 		for {
 			select {
+			case <-r.IncomingQueue:
+				atomic.AddUint64(&r.IncomingCounter, 1)
+				r.Cond.L.Lock()
+				length := config.Cfg.OutgoingReqQty - len(r.OutgoingQueue)
+				for i := 0; i < length; i++ {
+					r.OutgoingQueue <- struct{}{}
+					//log.Println(len(r.OutgoingQueue))
+				}
+				r.Cond.L.Unlock()
+				r.Cond.Broadcast()
 			case <-r.Quit:
 				return
-			case <-r.IncomingQueue:
-				r.mu.Lock()
-				r.IncomingCounter++
-				length := 4 - len(r.OutgoingQueue)
-				for i := 0; i < length; i++ {
-					r.OutgoingCounter++
-					r.OutgoingQueue <- struct{}{}
-				}
-				r.mu.Unlock()
 			default:
 			}
 		}

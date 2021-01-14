@@ -64,7 +64,7 @@ func waitForKillSignal(killSignalChan <-chan os.Signal) {
 	switch killSignal {
 	case os.Interrupt:
 		log.Println("got SIGINT...")
-		log.Println(fmt.Sprintf("Total request qty: %d", services.Limiter.IncomingCounter))
+		log.Println(fmt.Sprintf("Statistics: incoming: %d, outgoing: %d", services.Limiter.IncomingCounter, services.Limiter.OutgoingCounter))
 		log.Println("Stopping server...")
 	case syscall.SIGTERM:
 		log.Println("got SIGTERM...")
