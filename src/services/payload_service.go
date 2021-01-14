@@ -47,6 +47,7 @@ func (s *payloadService) apiRequest(ctx context.Context, item items.RequestItem,
 	resp, err := client.Do(request)
 	if err != nil {
 		errChan <- err
+		return nil
 	}
 	var result map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&result)
@@ -54,6 +55,7 @@ func (s *payloadService) apiRequest(ctx context.Context, item items.RequestItem,
 	jsonStr, err := json.Marshal(result)
 	if err != nil {
 		errChan <- err
+		return nil
 	}
 	response := &items.ResponseItem{Data: string(jsonStr)}
 
@@ -62,10 +64,10 @@ func (s *payloadService) apiRequest(ctx context.Context, item items.RequestItem,
 
 // DoRequest performs a payload request
 func (s *payloadService) DoRequest(ctx context.Context, request items.Request) <-chan Result {
-	result := make(chan Result, 1)
+	resultChan := make(chan Result, 1)
 	if len(request.Items) > config.Cfg.RequestPayload {
 		respErr := rest_errors.BadRequestError(fmt.Sprintf("max request qty is %d", config.Cfg.RequestPayload))
-		result <- Result{Response: nil, Error: respErr}
+		resultChan <- Result{Response: nil, Error: respErr}
 	}
 	var reqItems []*items.ResponseItem
 	ctx, cancel := context.WithCancel(ctx)
@@ -90,6 +92,7 @@ func (s *payloadService) DoRequest(ctx context.Context, request items.Request) <
 				if err != nil {
 					restErr = rest_errors.InternalServerError(fmt.Sprintf("error when trying to perform a request"), err)
 				}
+				resultChan <- Result{Response: nil, Error: restErr}
 				cancel()
 				return
 			case <-ctx.Done():
@@ -100,8 +103,7 @@ func (s *payloadService) DoRequest(ctx context.Context, request items.Request) <
 		}()
 	}
 	wg.Wait()
-
 	response := &items.Response{Items: reqItems}
-	result <- Result{Response: response, Error: restErr}
-	return result
+	resultChan <- Result{Response: response, Error: restErr}
+	return resultChan
 }
