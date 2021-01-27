@@ -15,7 +15,9 @@ import (
 
 var (
 	// PayloadService contains a gateway logic
-	PayloadService payloadServiceInterface = &payloadService{}
+	PayloadService payloadServiceInterface = &payloadService{
+		//Cond: sync.NewCond(&sync.Mutex{}),
+	}
 	// WorkerPool is a job queue
 	WorkerPool *Worker
 	Limiter    *RateLimiter
@@ -27,6 +29,7 @@ type payloadServiceInterface interface {
 
 type payloadService struct {
 	mu sync.Mutex
+	Cond *sync.Cond
 }
 
 // Result is http result
@@ -36,7 +39,7 @@ type Result struct {
 }
 
 func (s *payloadService) apiRequest(ctx context.Context, item items.RequestItem, errChan chan error) *items.ResponseItem {
-	request, err := http.NewRequest("GET", item.URL, nil)
+	request, err := http.NewRequest(http.MethodGet, item.URL, nil)
 	if err != nil {
 		errChan <- err
 	}
@@ -47,15 +50,19 @@ func (s *payloadService) apiRequest(ctx context.Context, item items.RequestItem,
 	resp, err := client.Do(request)
 	if err != nil {
 		errChan <- err
-		return nil
+		//return nil
+	}
+	if resp == nil {
+		errChan <- errors.New("HTTP request timeout")
+		//return nil
 	}
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	err = json.NewDecoder(resp.Body).Decode(&result)
 
 	jsonStr, err := json.Marshal(result)
 	if err != nil {
 		errChan <- err
-		return nil
+		//return nil
 	}
 	response := &items.ResponseItem{Data: string(jsonStr)}
 
@@ -92,7 +99,10 @@ func (s *payloadService) DoRequest(ctx context.Context, request items.Request) <
 				if err != nil {
 					restErr = rest_errors.InternalServerError(fmt.Sprintf("error when trying to perform a request"), err)
 				}
-				resultChan <- Result{Response: nil, Error: restErr}
+				//s.Cond.L.Lock()
+				//resultChan <- Result{Response: nil, Error: restErr}
+				//s.Cond.L.Unlock()
+				//s.Cond.Signal()
 				cancel()
 				return
 			case <-ctx.Done():
